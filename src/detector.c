@@ -355,7 +355,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile)
             } else if (imagenet){
                 print_imagenet_detections(fp, i+t-nthreads+1, boxes, probs, l.w*l.h*l.n, classes, w, h);
             } else {
-                print_detector_detections(fps, id, boxes, probs, l.w*l.h*l.n, classes, w, h);
+                print_detector_detections(fps, path, boxes, probs, l.w*l.h*l.n, classes, w, h);
             }
             free(id);
             free_image(val[t]);
