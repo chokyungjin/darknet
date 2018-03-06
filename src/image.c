@@ -188,8 +188,8 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
     int i;
 
     for(i = 0; i < num; ++i){
-        int class = max_index(probs[i], classes);
-        float prob = probs[i][class];
+        int class_id = max_index(probs[i], classes);
+        float prob = probs[i][class_id];
         if(prob > thresh){
 
 			//// for comparison with OpenCV version of DNN Darknet Yolo v2
@@ -207,8 +207,8 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
                 alphabet = 0;
             }
 
-            printf("%s: %.0f%%\n", names[class], prob*100);
-            int offset = class*123457 % classes;
+            printf("%s: %.0f%%\n", names[class_id], prob*100);
+            int offset = class_id*123457 % classes;
             float red = get_color(2,offset,classes);
             float green = get_color(1,offset,classes);
             float blue = get_color(0,offset,classes);
@@ -233,7 +233,7 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
 
             draw_box_width(im, left, top, right, bot, width, red, green, blue);
             if (alphabet) {
-                image label = get_label(alphabet, names[class], (im.h*.03)/10);
+                image label = get_label(alphabet, names[class_id], (im.h*.03)/10);
                 draw_label(im, top + width, left, label, rgb);
             }
         }
@@ -246,8 +246,8 @@ void draw_detections_cv(IplImage* show_img, int num, float thresh, box *boxes, f
 	int i;
 
 	for (i = 0; i < num; ++i) {
-		int class = max_index(probs[i], classes);
-		float prob = probs[i][class];
+		int class_id = max_index(probs[i], classes);
+		float prob = probs[i][class_id];
 		if (prob > thresh) {
 
 			int width = show_img->height * .012;
@@ -257,8 +257,8 @@ void draw_detections_cv(IplImage* show_img, int num, float thresh, box *boxes, f
 				alphabet = 0;
 			}
 
-			printf("%s: %.0f%%\n", names[class], prob * 100);
-			int offset = class * 123457 % classes;
+			printf("%s: %.0f%%\n", names[class_id], prob * 100);
+			int offset = class_id * 123457 % classes;
 			float red = get_color(2, offset, classes);
 			float green = get_color(1, offset, classes);
 			float blue = get_color(0, offset, classes);
@@ -299,18 +299,87 @@ void draw_detections_cv(IplImage* show_img, int num, float thresh, box *boxes, f
 			color.val[2] = blue * 256;
 
 			cvRectangle(show_img, pt1, pt2, color, width, 8, 0);
-			//printf("left=%d, right=%d, top=%d, bottom=%d, obj_id=%d, obj=%s \n", left, right, top, bot, class, names[class]);
+			//printf("left=%d, right=%d, top=%d, bottom=%d, obj_id=%d, obj=%s \n", left, right, top, bot, class_id, names[class_id]);
 			cvRectangle(show_img, pt_text_bg1, pt_text_bg2, color, width, 8, 0);
 			cvRectangle(show_img, pt_text_bg1, pt_text_bg2, color, CV_FILLED, 8, 0);	// filled
 			CvScalar black_color;
 			black_color.val[0] = 0;
 			CvFont font;
 			cvInitFont(&font, CV_FONT_HERSHEY_SIMPLEX, font_size, font_size, 0, font_size * 3, 8);	
-			cvPutText(show_img, names[class], pt_text, &font, black_color);
+			cvPutText(show_img, names[class_id], pt_text, &font, black_color);
 		}
 	}
 }
-#endif
+
+IplImage* draw_train_chart(float max_img_loss, int max_batches, int number_of_lines, int img_size)
+{
+	int img_offset = 50;
+	int draw_size = img_size - img_offset;
+	IplImage* img = cvCreateImage(cvSize(img_size, img_size), 8, 3);
+	cvSet(img, CV_RGB(255, 255, 255), 0);
+	CvPoint pt1, pt2, pt_text;
+	CvFont font;
+	cvInitFont(&font, CV_FONT_HERSHEY_COMPLEX_SMALL, 0.7, 0.7, 0, 1, CV_AA);
+	char char_buff[100];
+	int i;
+	// vertical lines
+	pt1.x = img_offset; pt2.x = img_size, pt_text.x = 10;
+	for (i = 1; i <= number_of_lines; ++i) {
+		pt1.y = pt2.y = (float)i * draw_size / number_of_lines;
+		cvLine(img, pt1, pt2, CV_RGB(224, 224, 224), 1, 8, 0);
+		if (i % 10 == 0) {
+			sprintf(char_buff, "%2.1f", max_img_loss*(number_of_lines - i) / number_of_lines);
+			pt_text.y = pt1.y + 5;
+			cvPutText(img, char_buff, pt_text, &font, CV_RGB(0, 0, 0));
+			cvLine(img, pt1, pt2, CV_RGB(128, 128, 128), 1, 8, 0);
+		}
+	}
+	// horizontal lines
+	pt1.y = draw_size; pt2.y = 0, pt_text.y = draw_size + 15;
+	for (i = 0; i <= number_of_lines; ++i) {
+		pt1.x = pt2.x = img_offset + (float)i * draw_size / number_of_lines;
+		cvLine(img, pt1, pt2, CV_RGB(224, 224, 224), 1, 8, 0);
+		if (i % 10 == 0) {
+			sprintf(char_buff, "%d", max_batches * i / number_of_lines);
+			pt_text.x = pt1.x - 20;
+			cvPutText(img, char_buff, pt_text, &font, CV_RGB(0, 0, 0));
+			cvLine(img, pt1, pt2, CV_RGB(128, 128, 128), 1, 8, 0);
+		}
+	}
+	cvPutText(img, "Iteration number", cvPoint(draw_size / 2, img_size - 10), &font, CV_RGB(0, 0, 0));
+	cvPutText(img, "Press 's' to save: chart.jpg", cvPoint(5, img_size - 10), &font, CV_RGB(0, 0, 0));
+	cvNamedWindow("average loss", CV_WINDOW_NORMAL);
+	cvMoveWindow("average loss", 0, 0);
+	cvResizeWindow("average loss", img_size, img_size);
+	cvShowImage("average loss", img);
+	cvWaitKey(20);
+	return img;
+}
+
+void draw_train_loss(IplImage* img, int img_size, float avg_loss, float max_img_loss, int current_batch, int max_batches)
+{
+	int img_offset = 50;
+	int draw_size = img_size - img_offset;
+	CvFont font;
+	cvInitFont(&font, CV_FONT_HERSHEY_COMPLEX_SMALL, 0.7, 0.7, 0, 1, CV_AA);
+	char char_buff[100];
+	CvPoint pt1, pt2;
+	pt1.x = img_offset + draw_size * (float)current_batch / max_batches;
+	pt1.y = draw_size * (1 - avg_loss / max_img_loss);
+	if (pt1.y < 0) pt1.y = 1;
+	cvCircle(img, pt1, 1, CV_RGB(0, 0, 255), CV_FILLED, 8, 0);
+
+	sprintf(char_buff, "current avg loss = %2.4f", avg_loss);
+	pt1.x = img_size / 2, pt1.y = 30;
+	pt2.x = pt1.x + 250, pt2.y = pt1.y + 20;
+	cvRectangle(img, pt1, pt2, CV_RGB(255, 255, 255), CV_FILLED, 8, 0);
+	pt1.y += 15;
+	cvPutText(img, char_buff, pt1, &font, CV_RGB(0, 0, 0));
+	cvShowImage("average loss", img);
+	int k = cvWaitKey(20);
+	if (k == 's') cvSaveImage("chart.jpg", img, 0);
+}
+#endif	// OPENCV
 
 void transpose_image(image im)
 {
@@ -528,7 +597,7 @@ void show_image_cv(image p, const char *name)
 }
 
 
-void show_image_cv_ipl(IplImage *disp, const char *name, CvVideoWriter *output_video_writer, int http_stream_port)
+void show_image_cv_ipl(IplImage *disp, const char *name)
 {
 	if (disp == NULL) return;
 	char buff[256];
@@ -538,24 +607,7 @@ void show_image_cv_ipl(IplImage *disp, const char *name, CvVideoWriter *output_v
 	//cvMoveWindow(buff, 100*(windows%10) + 200*(windows/10), 100*(windows%10));
 	++windows;
 	cvShowImage(buff, disp);
-
-
-	// http mjpeg stream: http://localhost:8090
-	// use URL with the port number stated in your command line instead of 8090
-	if (http_stream_port > 0) {
-		//int port = 8090;
-		int port = http_stream_port;
-		int timeout = 200;
-		int jpeg_quality = 30;	// 1 - 100
-		send_mjpeg(disp, port, timeout, jpeg_quality);
-	}
-
-	if(output_video_writer) {
-		cvWriteFrame(output_video_writer, disp);	// comment this line to improve FPS !!!
-		printf("\n cvWriteFrame \n");
-	}
-
-	cvReleaseImage(&disp);
+	//cvReleaseImage(&disp);
 }
 #endif
 

@@ -34,6 +34,7 @@ typedef enum {
     XNOR,
     REGION,
     REORG,
+	REORG_OLD,
     BLANK
 } LAYER_TYPE;
 
@@ -84,6 +85,7 @@ struct layer{
     float exposure;
     float shift;
     float ratio;
+	int focal_loss;
     int softmax;
     int classes;
     int coords;
