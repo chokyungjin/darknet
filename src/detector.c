@@ -76,6 +76,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 
 	int init_w = net.w;
 	int init_h = net.h;
+	int iter_save;
+	iter_save = get_current_batch(net);
 
     load_args args = {0};
     args.w = net.w;
@@ -89,7 +91,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	args.small_object = l.small_object;
     args.d = &buffer;
     args.type = DETECTION_DATA;
-	args.threads = 4;// 8;
+	args.threads = 64;	// 8
 
     args.angle = net.angle;
     args.exposure = net.exposure;
@@ -113,7 +115,6 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		if(l.random && count++%10 == 0){
             printf("Resizing\n");
 			int dim = (rand() % 12 + (init_w/32 - 5)) * 32;	// +-160
-            //int dim = (rand() % 10 + 10) * 32;
             //if (get_current_batch(net)+100 > net.max_batches) dim = 544;
             //int dim = (rand() % 4 + 16) * 32;
             printf("%d\n", dim);
@@ -177,7 +178,9 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 #endif	// OPENCV
 
 		//if (i % 1000 == 0 || (i < 1000 && i % 100 == 0)) {
-		if (i % 100 == 0) {
+		//if (i % 100 == 0) {
+		if(i >= (iter_save + 100)) {
+			iter_save = i;
 #ifdef GPU
 			if (ngpus != 1) sync_nets(nets, ngpus, 0);
 #endif
@@ -1028,6 +1031,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         }
         image im = load_image_color(input,0,0);
         image sized = resize_image(im, net.w, net.h);
+		//image sized = letterbox_image(im, net.w, net.h);
         layer l = net.layers[net.n-1];
 
         box *boxes = calloc(l.w*l.h*l.n, sizeof(box));

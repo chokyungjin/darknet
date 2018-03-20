@@ -207,7 +207,6 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
                 alphabet = 0;
             }
 
-            printf("%s: %.0f%%\n", names[class_id], prob*100);
             int offset = class_id*123457 % classes;
             float red = get_color(2,offset,classes);
             float green = get_color(1,offset,classes);
@@ -230,7 +229,12 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
             if(right > im.w-1) right = im.w-1;
             if(top < 0) top = 0;
             if(bot > im.h-1) bot = im.h-1;
+			printf("%s: %.0f%%", names[class_id], prob * 100);
+			
+			//printf(" - id: %d, x_center: %d, y_center: %d, width: %d, height: %d",
+			//	class_id, (right + left) / 2, (bot - top) / 2, right - left, bot - top);
 
+			printf("\n");
             draw_box_width(im, left, top, right, bot, width, red, green, blue);
             if (alphabet) {
                 image label = get_label(alphabet, names[class_id], (im.h*.03)/10);
@@ -348,6 +352,7 @@ IplImage* draw_train_chart(float max_img_loss, int max_batches, int number_of_li
 	}
 	cvPutText(img, "Iteration number", cvPoint(draw_size / 2, img_size - 10), &font, CV_RGB(0, 0, 0));
 	cvPutText(img, "Press 's' to save: chart.jpg", cvPoint(5, img_size - 10), &font, CV_RGB(0, 0, 0));
+	printf(" If error occurs - run training with flag: -dont_show \n");
 	cvNamedWindow("average loss", CV_WINDOW_NORMAL);
 	cvMoveWindow("average loss", 0, 0);
 	cvResizeWindow("average loss", img_size, img_size);
