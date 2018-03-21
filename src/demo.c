@@ -39,6 +39,7 @@ static image det  ;
 static image det_s;
 static image disp = {0};
 static CvCapture * cap;
+static int use_webcam = 0;
 static float fps = 0;
 static float demo_thresh = 0;
 
@@ -50,7 +51,7 @@ static float *avg;
 
 void draw_detections_cv(IplImage* show_img, int num, float thresh, box *boxes, float **probs, char **names, image **alphabet, int classes);
 void show_image_cv_ipl(IplImage *disp, const char *name);
-image get_image_from_stream_resize(CvCapture *cap, int w, int h, IplImage** in_img);
+image get_image_from_stream_resize(CvCapture *cap, int w, int h, IplImage** in_img, int use_webcam);
 IplImage* in_img;
 IplImage* det_img;
 IplImage* show_img;
@@ -60,9 +61,10 @@ static int flag_exit;
 void *fetch_in_thread(void *ptr)
 {
     //in = get_image_from_stream(cap);
-	in = get_image_from_stream_resize(cap, net.w, net.h, &in_img);
+	in = get_image_from_stream_resize(cap, net.w, net.h, &in_img, use_webcam);
     if(!in.data){
         //error("Stream closed.");
+		printf("Stream closed.\n");
 		flag_exit = 1;
 		return;
     }
@@ -144,7 +146,12 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
         cap = cvCaptureFromFile(filename);
     }else{
 		printf("Webcam index: %d\n", cam_index);
+#ifdef CV_VERSION_EPOCH	// OpenCV 2.x
         cap = cvCaptureFromCAM(cam_index);
+#else					// OpenCV 3.x
+		use_webcam = 1;
+		cap = get_capture_webcam(cam_index);
+#endif
     }
 
     if(!cap) error("Couldn't connect to webcam.\n");
@@ -159,6 +166,8 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
     boxes = (box *)calloc(l.w*l.h*l.n, sizeof(box));
     probs = (float **)calloc(l.w*l.h*l.n, sizeof(float *));
     for(j = 0; j < l.w*l.h*l.n; ++j) probs[j] = (float *)calloc(l.classes, sizeof(float *));
+
+	flag_exit = 0;
 
     pthread_t fetch_thread;
     pthread_t detect_thread;
@@ -192,7 +201,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
     }
 
 	CvVideoWriter* output_video_writer = NULL;    // cv::VideoWriter output_video;
-	if (out_filename)
+	if (out_filename && !flag_exit)
 	{
 		CvSize size;
 		size.width = det_img->width, size.height = det_img->height;
@@ -206,7 +215,6 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
 		//output_video_writer = cvCreateVideoWriter(out_filename, CV_FOURCC('X', 'V', 'I', 'D'), 25, size, 1);
 		//output_video_writer = cvCreateVideoWriter(out_filename, CV_FOURCC('W', 'M', 'V', '2'), 25, size, 1);
 	}
-	flag_exit = 0;
 
     double before = get_wall_time();
 
