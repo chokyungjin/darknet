@@ -78,7 +78,6 @@ struct layer{
     int out_h, out_w, out_c;
     int n;
     int max_boxes;
-	int small_object;
     int groups;
     int size;
     int side;
@@ -282,7 +281,7 @@ struct layer{
     #ifdef CUDNN
     cudnnTensorDescriptor_t srcTensorDesc, dstTensorDesc;
     cudnnTensorDescriptor_t dsrcTensorDesc, ddstTensorDesc;
-	cudnnTensorDescriptor_t normTensorDesc;
+	cudnnTensorDescriptor_t normTensorDesc, normDstTensorDesc, normDstTensorDescF16;
     cudnnFilterDescriptor_t weightDesc;
     cudnnFilterDescriptor_t dweightDesc;
     cudnnConvolutionDescriptor_t convDesc;
